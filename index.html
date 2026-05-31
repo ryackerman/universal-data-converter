@@ -11,6 +11,8 @@
 <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <style>
   :root{
     --bg:#f8fafc;--surface:#ffffff;--surface-2:#f1f5f9;--border:#e2e8f0;
@@ -67,6 +69,11 @@
   @keyframes slideIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
   .sidebar{transition:transform .2s}
   @media(max-width:1024px){.sidebar{position:fixed;top:0;left:0;height:100vh;z-index:50;transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;background:linear-gradient(135deg,var(--bg) 0%,var(--surface-2) 100%)}
+  .login-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:1rem;padding:2rem;box-shadow:0 10px 40px rgba(0,0,0,.08)}
+  .code-input{font-family:'JetBrains Mono',monospace;letter-spacing:.3em;text-align:center;font-size:1.1rem;text-transform:uppercase}
+  .shake{animation:shake .4s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 </style>
 </head>
 <body>
@@ -478,6 +485,7 @@ const TOOLS = {
   },
   files: {
     label: 'File Conversion', icon: 'file-json', tools: [
+      { id:'pdf-extract', name:'PDF → Text', desc:'Extract text from PDF files' },
       { id:'json-csv', name:'JSON ↔ CSV', desc:'Convert JSON and CSV' },
       { id:'json-xml', name:'JSON ↔ XML', desc:'Convert JSON and XML' },
     ]
@@ -1432,6 +1440,95 @@ Renderers['qr'] = () => {
   return wrap;
 };
 
+// PDF → Text
+Renderers['pdf-extract'] = () => {
+  const result = el('textarea',{class:'textarea',readonly:'true',style:{minHeight:'300px'}});
+  const status = el('div',{class:'text-xs text-muted'});
+  const meta = el('div',{class:'space-y-2'});
+  const pageRange = el('input',{class:'input',placeholder:'e.g. 1-5 or 1,3,5 (blank=all)',style:{maxWidth:'240px'}});
+  const preserveLayout = el('input',{type:'checkbox',checked:'true'});
+  const parseRange = (str, total) => {
+    if (!str.trim()) return Array.from({length:total},(_,i)=>i+1);
+    const out = new Set();
+    str.split(',').forEach(part => {
+      const m = part.trim().match(/^(\d+)(?:-(\d+))?$/);
+      if (!m) return;
+      const a = +m[1], b = +(m[2]||m[1]);
+      for (let i=a;i<=b && i<=total;i++) if (i>0) out.add(i);
+    });
+    return [...out].sort((a,b)=>a-b);
+  };
+  const drop = makeDropZone(async (files) => {
+    if (!files.length) return;
+    if (!window.pdfjsLib) { status.textContent='PDF.js not loaded'; return; }
+    const f = files[0];
+    status.textContent = 'Loading PDF...';
+    meta.innerHTML = ''; result.value = '';
+    try {
+      const buf = await f.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+      const info = await pdf.getMetadata().catch(()=>({info:{}}));
+      meta.append(el('div',{class:'surface rounded-lg p-3 text-sm space-y-1'},
+        el('div',{class:'flex justify-between'},el('span',{class:'text-muted'},'Filename'),el('span',null,f.name)),
+        el('div',{class:'flex justify-between'},el('span',{class:'text-muted'},'Size'),el('span',null,(f.size/1024).toFixed(2)+' KB')),
+        el('div',{class:'flex justify-between'},el('span',{class:'text-muted'},'Pages'),el('span',null,pdf.numPages)),
+        info.info?.Title ? el('div',{class:'flex justify-between'},el('span',{class:'text-muted'},'Title'),el('span',null,info.info.Title)) : null,
+        info.info?.Author ? el('div',{class:'flex justify-between'},el('span',{class:'text-muted'},'Author'),el('span',null,info.info.Author)) : null,
+        info.info?.Producer ? el('div',{class:'flex justify-between'},el('span',{class:'text-muted'},'Producer'),el('span',null,info.info.Producer)) : null,
+      ));
+      const pages = parseRange(pageRange.value, pdf.numPages);
+      let text = '';
+      for (const n of pages) {
+        status.textContent = `Extracting page ${n}/${pages[pages.length-1]}...`;
+        const page = await pdf.getPage(n);
+        const content = await page.getTextContent();
+        if (preserveLayout.checked) {
+          let lastY = null, line = '';
+          const items = content.items.sort((a,b)=> (b.transform[5]-a.transform[5]) || (a.transform[4]-b.transform[4]));
+          for (const it of items) {
+            const y = Math.round(it.transform[5]);
+            if (lastY !== null && Math.abs(y - lastY) > 2) { text += line + '\n'; line = ''; }
+            line += it.str + (it.hasEOL?'\n':' ');
+            lastY = y;
+          }
+          text += line + '\n';
+        } else {
+          text += content.items.map(i=>i.str).join(' ') + '\n';
+        }
+        text += `\n--- End of page ${n} ---\n\n`;
+      }
+      result.value = text.trim();
+      status.textContent = `✓ Extracted ${pages.length} page(s) — ${result.value.length} chars`;
+      status.style.color = 'var(--success)';
+      addHistory('pdf-extract', f.name, result.value.slice(0,200));
+    } catch(e) {
+      status.textContent = '✗ Error: '+e.message;
+      status.style.color = 'var(--danger)';
+    }
+  }, 'application/pdf', true);
+  return el('div',{class:'space-y-3'},
+    drop,
+    el('div',{class:'flex gap-3 items-center flex-wrap'},
+      el('label',{class:'text-xs text-muted'},'Pages:'), pageRange,
+      el('label',{class:'flex items-center gap-1 text-xs'}, preserveLayout, 'Preserve layout'),
+    ),
+    status,
+    meta,
+    el('div',{class:'flex justify-between items-center'},
+      el('label',{class:'text-xs text-muted'},'Extracted text'),
+      el('div',{class:'flex gap-1'},
+        el('button',{class:'btn btn-ghost', onclick:()=>copyText(result.value)}, icon('copy',14),'Copy'),
+        el('button',{class:'btn btn-ghost', onclick:()=>{
+          const blob = new Blob([result.value],{type:'text/plain'});
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+          a.download = 'extracted.txt'; a.click();
+        }}, icon('download',14),'Download'),
+      )
+    ),
+    result
+  );
+};
+
 // ---------- DROP ZONE HELPER ----------
 function makeDropZone(handler, accept='*', singleImage=false) {
   const text = singleImage ? 'Drop image here, click to browse, or paste from clipboard' : 'Drop file here or click to browse';
@@ -1451,6 +1548,77 @@ function makeDropZone(handler, accept='*', singleImage=false) {
     handler([...e.dataTransfer.files]);
   });
   return zone;
+}
+
+// ---------- AUTH ----------
+const ACCESS_CODES = {
+  'KHALID-2026':   'Khalid',
+  'WALID-2026':    'Walid',
+  'REDA-2026':     'Reda',
+  'MOHAMMED-2026': 'Mohammed',
+  'KHADIJA-2026':  'Khadija',
+  'CHAIMAE-2026':  'Chaimae',
+  'ZINEB-2026':    'Zineb',
+  'ANAS-2026':     'Anas',
+  'MOHAMED-2026':  'Mohamed',
+  'OMAR-2026':     'Omar',
+  'AYMANE-2026':   'Aymane',
+};
+
+const Auth = {
+  user: localStorage.getItem('udc-user') || null,
+  login(code) {
+    const k = code.trim().toUpperCase();
+    if (ACCESS_CODES[k]) {
+      this.user = ACCESS_CODES[k];
+      localStorage.setItem('udc-user', this.user);
+      return true;
+    }
+    return false;
+  },
+  logout() {
+    this.user = null;
+    localStorage.removeItem('udc-user');
+    renderLogin();
+  }
+};
+
+function renderLogin() {
+  document.documentElement.classList.toggle('dark', State.theme === 'dark');
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  app.className = '';
+  const wrap = el('div',{class:'login-wrap'});
+  const input = el('input',{class:'input code-input', placeholder:'XXXXXX-XXXX', autofocus:'true', autocomplete:'off'});
+  const err = el('div',{class:'text-xs text-center mt-2', style:{color:'var(--danger)',minHeight:'1rem'}});
+  const card = el('div',{class:'login-card'});
+  const tryLogin = () => {
+    if (Auth.login(input.value)) {
+      app.className = 'min-h-screen flex';
+      render();
+    } else {
+      err.textContent = 'Invalid access code';
+      card.classList.add('shake');
+      setTimeout(()=>card.classList.remove('shake'), 400);
+      input.value = ''; input.focus();
+    }
+  };
+  card.append(
+    el('div',{class:'flex flex-col items-center mb-6'},
+      el('div',{class:'flex items-center justify-center mb-3', style:{width:'56px',height:'56px',background:'var(--accent)',borderRadius:'1rem',color:'#fff'}}, icon('zap',28)),
+      el('div',{class:'text-xl font-bold'},'Universal Data Converter'),
+      el('div',{class:'text-sm text-muted mt-1'},'Enter your access code to continue')
+    ),
+    el('label',{class:'text-xs text-muted block mb-1'},'Access code'),
+    input,
+    err,
+    el('button',{class:'btn btn-primary w-full justify-center mt-4', onclick:tryLogin}, icon('log-in',14), 'Sign in'),
+    el('div',{class:'text-xs text-muted text-center mt-4'},'Access is restricted to authorized users only')
+  );
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+  wrap.append(card);
+  app.append(wrap);
+  if (window.lucide) window.lucide.createIcons();
 }
 
 // ---------- MAIN RENDER ----------
@@ -1487,7 +1655,15 @@ function render() {
         );
       }).filter(Boolean)
     ),
-    el('div',{class:'p-3',style:{borderTop:'1px solid var(--border)'}},
+    el('div',{class:'p-3 space-y-2',style:{borderTop:'1px solid var(--border)'}},
+      el('div',{class:'flex items-center gap-2 px-2 py-1'},
+        el('div',{class:'flex items-center justify-center', style:{width:'28px',height:'28px',background:'var(--accent)',color:'#fff',borderRadius:'50%',fontSize:'.75rem',fontWeight:'600'}}, Auth.user?.[0]?.toUpperCase()||'?'),
+        el('div',{class:'flex-1 min-w-0'},
+          el('div',{class:'text-sm font-medium truncate'}, Auth.user||'Guest'),
+          el('div',{class:'text-xs text-muted'},'Signed in')
+        ),
+        el('button',{class:'btn btn-ghost', onclick:()=>Auth.logout(), title:'Sign out'}, icon('log-out',14))
+      ),
       el('button',{class:'btn w-full justify-center', onclick:()=>{State.theme=State.theme==='dark'?'light':'dark';saveState();render()}},
         icon(State.theme==='dark'?'sun':'moon',14),
         State.theme==='dark'?'Light mode':'Dark mode'
@@ -1535,7 +1711,7 @@ function render() {
   if (window.lucide) window.lucide.createIcons();
 }
 
-render();
+if (Auth.user) render(); else renderLogin();
 </script>
 </body>
 </html>
