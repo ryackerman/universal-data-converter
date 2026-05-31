@@ -23,7 +23,8 @@
     --bg:#0b1020;--surface:#121829;--surface-2:#1a2236;--border:#1f2940;
     --text:#e2e8f0;--text-muted:#94a3b8;--accent:#818cf8;--accent-hover:#6366f1;
   }
-  html,body{background:var(--bg);color:var(--text);font-family:'Inter',ui-sans-serif,system-ui,sans-serif}
+  html,body{background:var(--bg);color:var(--text);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;height:100%;overflow:hidden}
+  #app{height:100vh;overflow:hidden}
   .surface{background:var(--surface);border:1px solid var(--border)}
   .surface-2{background:var(--surface-2)}
   .border-app{border-color:var(--border)}
@@ -69,7 +70,7 @@
   @keyframes slideIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
   .sidebar{transition:transform .2s}
   @media(max-width:1024px){.sidebar{position:fixed;top:0;left:0;height:100vh;z-index:50;transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}}
-  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;background:linear-gradient(135deg,var(--bg) 0%,var(--surface-2) 100%)}
+  .login-wrap{min-height:100vh;height:100vh;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:1rem;background:linear-gradient(135deg,var(--bg) 0%,var(--surface-2) 100%)}
   .login-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:1rem;padding:2rem;box-shadow:0 10px 40px rgba(0,0,0,.08)}
   .code-input{font-family:'JetBrains Mono',monospace;letter-spacing:.3em;text-align:center;font-size:1.1rem;text-transform:uppercase}
   .shake{animation:shake .4s}
@@ -523,7 +524,7 @@ function el(tag, props={}, ...children) {
   }
   for (const c of children.flat()) {
     if (c == null || c === false) continue;
-    n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    n.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
   }
   return n;
 }
