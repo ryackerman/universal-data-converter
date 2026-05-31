@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Universal Data Converter & Decoder</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+<style>
+  :root{
+    --bg:#f8fafc;--surface:#ffffff;--surface-2:#f1f5f9;--border:#e2e8f0;
+    --text:#0f172a;--text-muted:#64748b;--accent:#6366f1;--accent-hover:#4f46e5;
+    --success:#10b981;--danger:#ef4444;--warning:#f59e0b;
+  }
+  .dark{
+    --bg:#0b1020;--surface:#121829;--surface-2:#1a2236;--border:#1f2940;
+    --text:#e2e8f0;--text-muted:#94a3b8;--accent:#818cf8;--accent-hover:#6366f1;
+  }
+  html,body{background:var(--bg);color:var(--text);font-family:'Inter',ui-sans-serif,system-ui,sans-serif}
+  .surface{background:var(--surface);border:1px solid var(--border)}
+  .surface-2{background:var(--surface-2)}
+  .border-app{border-color:var(--border)}
+  .text-muted{color:var(--text-muted)}
+  .accent{color:var(--accent)}
+  .bg-accent{background:var(--accent)}
+  .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .8rem;border-radius:.5rem;font-size:.85rem;font-weight:500;transition:all .15s;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+  .btn:hover{background:var(--surface-2)}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn-primary:hover{background:var(--accent-hover)}
+  .btn-ghost{border-color:transparent;background:transparent}
+  .btn-ghost:hover{background:var(--surface-2)}
+  .input,.textarea,select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:.5rem;padding:.55rem .7rem;font-size:.85rem;color:var(--text);outline:none;transition:border .15s}
+  .input:focus,.textarea:focus,select:focus{border-color:var(--accent)}
+  .textarea{font-family:'JetBrains Mono',ui-monospace,monospace;resize:vertical;min-height:160px}
+  .chip{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border-radius:.35rem;font-size:.7rem;font-weight:500;background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border)}
+  .chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .tool-card{cursor:pointer;transition:all .15s}
+  .tool-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .tool-card.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+  .nav-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .7rem;border-radius:.5rem;font-size:.85rem;cursor:pointer;color:var(--text-muted)}
+  .nav-item:hover{background:var(--surface-2);color:var(--text)}
+  .nav-item.active{background:var(--accent);color:#fff}
+  .nav-item.active svg{color:#fff}
+  .scroll-thin::-webkit-scrollbar{width:6px;height:6px}
+  .scroll-thin::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  pre.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.78rem;white-space:pre-wrap;word-break:break-all}
+  .badge{padding:.15rem .45rem;border-radius:.3rem;font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+  .drop-zone{border:2px dashed var(--border);border-radius:.75rem;padding:1.5rem;text-align:center;transition:all .2s}
+  .drop-zone.drag-over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 5%,transparent)}
+  .tree{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.78rem;line-height:1.5}
+  .tree-node{padding-left:1rem;border-left:1px dashed var(--border);margin-left:.5rem}
+  details>summary{cursor:pointer;list-style:none;user-select:none}
+  details>summary::-webkit-details-marker{display:none}
+  details>summary::before{content:'▶';display:inline-block;margin-right:.3rem;font-size:.6rem;transition:transform .15s}
+  details[open]>summary::before{transform:rotate(90deg)}
+  .split-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  @media(max-width:768px){.split-grid{grid-template-columns:1fr}}
+  .highlight-match{background:color-mix(in srgb,var(--warning) 40%,transparent);border-radius:2px}
+  .hex-row{display:grid;grid-template-columns:80px 1fr 200px;gap:1rem;font-family:'JetBrains Mono',monospace;font-size:.75rem;padding:.15rem .5rem}
+  .hex-row:hover{background:var(--surface-2)}
+  .toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.7rem 1rem;border-radius:.5rem;background:var(--text);color:var(--bg);font-size:.85rem;z-index:100;animation:slideIn .2s}
+  @keyframes slideIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .sidebar{transition:transform .2s}
+  @media(max-width:1024px){.sidebar{position:fixed;top:0;left:0;height:100vh;z-index:50;transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}}
+</style>
+</head>
+<body>
+<div id="app" class="min-h-screen flex"></div>
+
+<script>
+/* ============================================================
+   UNIVERSAL DATA CONVERTER & DECODER
+   Fully client-side. Modular architecture.
+   ============================================================ */
+
+// ---------- STATE ----------
+const State = {
+  theme: localStorage.getItem('udc-theme') || 'light',
+  activeCategory: 'encoding',
+  activeTool: 'base64',
+  search: '',
+  favorites: JSON.parse(localStorage.getItem('udc-favs') || '[]'),
+  history: JSON.parse(localStorage.getItem('udc-history') || '[]'),
+  sidebarOpen: false,
+};
+
+function saveState() {
+  localStorage.setItem('udc-theme', State.theme);
+  localStorage.setItem('udc-favs', JSON.stringify(State.favorites));
+  localStorage.setItem('udc-history', JSON.stringify(State.history.slice(0, 50)));
+}
+
+function addHistory(tool, input, output) {
+  if (!input || !output) return;
+  State.history.unshift({
+    tool, input: String(input).slice(0, 200), output: String(output).slice(0, 200),
+    ts: Date.now()
+  });
+  State.history = State.history.slice(0, 50);
+  saveState();
+}
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1800);
+}
+
+function copyText(t) {
+  navigator.clipboard.writeText(t).then(() => toast('Copied'));
+}
+
+// ---------- CONVERSION ENGINES ----------
+const Conv = {
+  // Base64
+  base64Encode: s => { try { return btoa(unescape(encodeURIComponent(s))); } catch(e){ return 'Error: '+e.message; }},
+  base64Decode: s => { try { return decodeURIComponent(escape(atob(s.replace(/\s/g,'')))); } catch(e){ return 'Error: invalid Base64'; }},
+  // URL
+  urlEncode: s => encodeURIComponent(s),
+  urlDecode: s => { try { return decodeURIComponent(s); } catch(e){ return 'Error: invalid URL encoding'; }},
+  // HTML entities
+  htmlEncode: s => s.replace(/[&<>"'`=\/]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;','=':'&#61;','/':'&#47;'})[c]),
+  htmlDecode: s => { const d = document.createElement('div'); d.innerHTML = s; return d.textContent || d.innerText || ''; },
+  // Unicode
+  unicodeEncode: s => [...s].map(c => '\\u' + c.charCodeAt(0).toString(16).padStart(4,'0')).join(''),
+  unicodeDecode: s => s.replace(/\\u([\dA-Fa-f]{4})/g, (_,h)=>String.fromCharCode(parseInt(h,16))),
+  // ASCII
+  asciiEncode: s => [...s].map(c=>c.charCodeAt(0)).join(' '),
+  asciiDecode: s => s.trim().split(/\s+/).map(n=>String.fromCharCode(parseInt(n,10))).join(''),
+  // Hex
+  hexEncode: s => [...new TextEncoder().encode(s)].map(b=>b.toString(16).padStart(2,'0')).join(' '),
+  hexDecode: s => { try { const bytes = s.replace(/[^0-9a-fA-F]/g,'').match(/.{1,2}/g)||[]; return new TextDecoder().decode(new Uint8Array(bytes.map(b=>parseInt(b,16)))); } catch(e){ return 'Error'; }},
+  // Binary
+  binaryEncode: s => [...new TextEncoder().encode(s)].map(b=>b.toString(2).padStart(8,'0')).join(' '),
+  binaryDecode: s => { try { const bits = s.replace(/[^01]/g,'').match(/.{1,8}/g)||[]; return new TextDecoder().decode(new Uint8Array(bits.map(b=>parseInt(b,2)))); } catch(e){ return 'Error'; }},
+  // ROT13
+  rot13: s => s.replace(/[a-zA-Z]/g, c => String.fromCharCode((c<='Z'?90:122) >= (c.charCodeAt(0)+13) ? c.charCodeAt(0)+13 : c.charCodeAt(0)-13)),
+  // Quoted-Printable
+  qpEncode: s => {
+    const bytes = new TextEncoder().encode(s);
+    let out = '';
+    for (const b of bytes) {
+      if ((b>=33 && b<=126 && b!==61) || b===32 || b===9) out += String.fromCharCode(b);
+      else out += '=' + b.toString(16).toUpperCase().padStart(2,'0');
+    }
+    return out.replace(/(.{73})/g, '$1=\r\n');
+  },
+  qpDecode: s => {
+    s = s.replace(/=\r?\n/g, '');
+    const bytes = [];
+    for (let i=0; i<s.length; i++) {
+      if (s[i]==='=' && i+2<s.length) {
+        bytes.push(parseInt(s.substr(i+1,2),16)); i+=2;
+      } else bytes.push(s.charCodeAt(i));
+    }
+    try { return new TextDecoder().decode(new Uint8Array(bytes)); } catch(e){ return 'Error'; }
+  },
+  // MIME encoded-word
+  mimeDecode: s => s.replace(/=\?([^?]+)\?([BbQq])\?([^?]+)\?=/g, (_, charset, enc, txt) => {
+    if (enc.toUpperCase()==='B') return Conv.base64Decode(txt);
+    return Conv.qpDecode(txt.replace(/_/g,' '));
+  }),
+  // UUEncode / UUDecode
+  uuEncode: s => {
+    const bytes = new TextEncoder().encode(s);
+    let out = 'begin 644 file\n';
+    for (let i=0; i<bytes.length; i+=45) {
+      const chunk = bytes.slice(i, i+45);
+      out += String.fromCharCode(chunk.length + 32);
+      for (let j=0; j<chunk.length; j+=3) {
+        const b1 = chunk[j]||0, b2 = chunk[j+1]||0, b3 = chunk[j+2]||0;
+        out += String.fromCharCode(((b1>>2)&0x3F)+32);
+        out += String.fromCharCode((((b1<<4)|(b2>>4))&0x3F)+32);
+        out += String.fromCharCode((((b2<<2)|(b3>>6))&0x3F)+32);
+        out += String.fromCharCode((b3&0x3F)+32);
+      }
+      out += '\n';
+    }
+    return out + '`\nend';
+  },
+  uuDecode: s => {
+    const lines = s.split('\n').filter(l => l && !l.startsWith('begin') && !l.startsWith('end') && l!=='`');
+    const bytes = [];
+    for (const line of lines) {
+      const len = line.charCodeAt(0) - 32;
+      if (len <= 0) continue;
+      let count = 0;
+      for (let i=1; i<line.length && count<len; i+=4) {
+        const c1 = (line.charCodeAt(i)-32)&0x3F;
+        const c2 = (line.charCodeAt(i+1)-32)&0x3F;
+        const c3 = (line.charCodeAt(i+2)-32)&0x3F;
+        const c4 = (line.charCodeAt(i+3)-32)&0x3F;
+        if (count<len){bytes.push((c1<<2)|(c2>>4));count++;}
+        if (count<len){bytes.push(((c2<<4)|(c3>>2))&0xFF);count++;}
+        if (count<len){bytes.push(((c3<<6)|c4)&0xFF);count++;}
+      }
+    }
+    try { return new TextDecoder().decode(new Uint8Array(bytes)); } catch(e){ return 'Error'; }
+  },
+  // Punycode (simple ASCII fallback using URL API)
+  punyEncode: s => { try { return new URL('http://' + s).hostname; } catch(e){ return 'Error'; }},
+  punyDecode: s => { try { const u = new URL('http://' + s); return decodeURIComponent(u.hostname); } catch(e){ return 'Error'; }},
+  // JWT
+  jwtDecode: s => {
+    const parts = s.trim().split('.');
+    if (parts.length !== 3) return { error: 'Invalid JWT format (expected 3 parts)' };
+    try {
+      const decode = p => JSON.parse(decodeURIComponent(escape(atob(p.replace(/-/g,'+').replace(/_/g,'/')))));
+      return { header: decode(parts[0]), payload: decode(parts[1]), signature: parts[2] };
+    } catch(e) { return { error: e.message }; }
+  },
+};
+
+// ---------- SMART DETECTOR ----------
+function detectFormat(s) {
+  if (!s || !s.trim()) return [];
+  const t = s.trim();
+  const results = [];
+  // JWT
+  if (/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t)) results.push({type:'JWT', confidence:95});
+  // JSON
+  try { JSON.parse(t); results.push({type:'JSON', confidence:90}); } catch(e){}
+  // XML/HTML
+  if (/^\s*<\?xml/i.test(t)) results.push({type:'XML', confidence:95});
+  else if (/<\/?[a-z][\s\S]*>/i.test(t)) {
+    if (/<html|<body|<head|<!DOCTYPE/i.test(t)) results.push({type:'HTML', confidence:90});
+    else results.push({type:'HTML/XML', confidence:70});
+  }
+  // Base64
+  if (/^[A-Za-z0-9+/]+=*$/.test(t.replace(/\s/g,'')) && t.length>=4 && t.length%4===0) {
+    results.push({type:'Base64', confidence:75});
+  }
+  // URL Encoded
+  if (/%[0-9A-Fa-f]{2}/.test(t)) results.push({type:'URL Encoded', confidence:80});
+  // Quoted-Printable
+  if (/=[0-9A-F]{2}/.test(t) && /=\r?\n|=\s*$/.test(t)) results.push({type:'Quoted-Printable', confidence:80});
+  // Hex
+  if (/^[0-9a-fA-F\s]+$/.test(t) && t.replace(/\s/g,'').length%2===0 && t.replace(/\s/g,'').length>=4) results.push({type:'Hex', confidence:60});
+  // Binary
+  if (/^[01\s]+$/.test(t) && t.replace(/\s/g,'').length%8===0) results.push({type:'Binary', confidence:80});
+  // MIME email
+  if (/^(From|Subject|To|Received|Content-Type|MIME-Version):/im.test(t)) results.push({type:'MIME Email', confidence:90});
+  return results.sort((a,b)=>b.confidence-a.confidence);
+}
+
+// ---------- HTML TOOLS ----------
+function htmlToText(html, opts={}) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  if (opts.removeScripts !== false) doc.querySelectorAll('script').forEach(n=>n.remove());
+  if (opts.removeStyles !== false) doc.querySelectorAll('style').forEach(n=>n.remove());
+  if (opts.removeComments !== false) {
+    const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_COMMENT);
+    const comments = [];
+    while (walker.nextNode()) comments.push(walker.currentNode);
+    comments.forEach(c => c.remove());
+  }
+  if (opts.preserveLinks) {
+    doc.querySelectorAll('a').forEach(a => {
+      const href = a.getAttribute('href');
+      if (href) a.textContent = `${a.textContent} (${href})`;
+    });
+  }
+  let text = doc.body ? doc.body.textContent : doc.documentElement.textContent;
+  if (opts.preserveBreaks !== false) text = text.replace(/\n\s*\n/g,'\n\n');
+  return text.trim();
+}
+
+function analyzeHtml(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return {
+    title: doc.title || '(none)',
+    metas: [...doc.querySelectorAll('meta')].map(m=>({
+      name: m.getAttribute('name')||m.getAttribute('property')||m.getAttribute('http-equiv')||'',
+      content: m.getAttribute('content')||''
+    })).filter(m=>m.name),
+    images: [...doc.querySelectorAll('img')].map(i=>({src:i.getAttribute('src'),alt:i.getAttribute('alt')||''})),
+    links: [...doc.querySelectorAll('a[href]')].map(a=>({href:a.getAttribute('href'),text:(a.textContent||'').trim().slice(0,80)})),
+    css: [...doc.querySelectorAll('link[rel=stylesheet]')].map(l=>l.getAttribute('href')),
+    scripts: [...doc.querySelectorAll('script[src]')].map(s=>s.getAttribute('src')),
+    forms: [...doc.querySelectorAll('form')].map(f=>({action:f.getAttribute('action')||'',method:f.getAttribute('method')||'GET',inputs:f.querySelectorAll('input,select,textarea').length})),
+  };
+}
+
+function textToHtml(text, opts={}) {
+  let escaped = Conv.htmlEncode(text);
+  if (opts.autoLink) escaped = escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>');
+  if (opts.mode === 'paragraphs') {
+    return escaped.split(/\n\s*\n/).map(p => `<p>${p.replace(/\n/g,'<br/>')}</p>`).join('\n');
+  }
+  if (opts.mode === 'email') {
+    const inner = escaped.split(/\n\s*\n/).map(p => `<p style="margin:0 0 1em 0;font-family:Arial,sans-serif;color:#333">${p.replace(/\n/g,'<br/>')}</p>`).join('\n');
+    return `<table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f4f4f4"><tr><td align="center"><table cellpadding="20" cellspacing="0" border="0" width="600" style="background:#fff"><tr><td>${inner}</td></tr></table></td></tr></table>`;
+  }
+  return escaped.replace(/\n/g,'<br/>');
+}
+
+// ---------- MIME / EML PARSER ----------
+function parseEml(raw) {
+  const headerEnd = raw.search(/\r?\n\r?\n/);
+  const headerBlock = raw.slice(0, headerEnd);
+  const body = raw.slice(headerEnd).replace(/^\r?\n\r?\n/, '');
+  const headers = {};
+  const lines = headerBlock.split(/\r?\n/);
+  let cur = null;
+  for (const line of lines) {
+    if (/^[ \t]/.test(line) && cur) headers[cur] += ' ' + line.trim();
+    else {
+      const m = line.match(/^([^:]+):\s*(.*)$/);
+      if (m) { cur = m[1].toLowerCase(); headers[cur] = m[2]; }
+    }
+  }
+  const ctype = headers['content-type'] || 'text/plain';
+  const boundaryMatch = ctype.match(/boundary="?([^";]+)"?/i);
+  const parts = [];
+  if (boundaryMatch) {
+    const boundary = '--' + boundaryMatch[1];
+    const sections = body.split(boundary);
+    for (const sec of sections) {
+      if (!sec.trim() || sec.trim() === '--') continue;
+      const hEnd = sec.search(/\r?\n\r?\n/);
+      if (hEnd === -1) continue;
+      const partHeaders = {};
+      sec.slice(0, hEnd).split(/\r?\n/).forEach(l => {
+        const m = l.match(/^([^:]+):\s*(.*)$/);
+        if (m) partHeaders[m[1].toLowerCase()] = m[2];
+      });
+      const partBody = sec.slice(hEnd).replace(/^\r?\n\r?\n/, '').replace(/\r?\n--$/, '');
+      parts.push({ headers: partHeaders, body: partBody });
+    }
+  }
+  return { headers, body, parts, boundary: boundaryMatch ? boundaryMatch[1] : null };
+}
+
+function analyzeEmailHeaders(headers) {
+  const out = {};
+  const auth = headers['authentication-results'] || '';
+  out.spf = (auth.match(/spf=(\w+)/i) || [])[1] || (headers['received-spf']||'').match(/^(\w+)/)?.[1] || 'unknown';
+  out.dkim = (auth.match(/dkim=(\w+)/i) || [])[1] || 'unknown';
+  out.dmarc = (auth.match(/dmarc=(\w+)/i) || [])[1] || 'unknown';
+  out.returnPath = headers['return-path'] || '(none)';
+  out.from = headers['from'] || '(none)';
+  out.to = headers['to'] || '(none)';
+  out.subject = Conv.mimeDecode(headers['subject'] || '(none)');
+  out.date = headers['date'] || '(none)';
+  return out;
+}
+
+// ---------- JSON / XML / CSV ----------
+function jsonToCsv(json) {
+  const arr = Array.isArray(json) ? json : [json];
+  if (!arr.length) return '';
+  const keys = [...new Set(arr.flatMap(o => Object.keys(o||{})))];
+  const esc = v => { v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  return [keys.join(','), ...arr.map(o => keys.map(k => esc(o[k])).join(','))].join('\n');
+}
+function csvToJson(csv) {
+  const lines = csv.split(/\r?\n/).filter(l=>l);
+  if (!lines.length) return [];
+  const parseLine = l => {
+    const out = []; let cur=''; let q=false;
+    for (let i=0;i<l.length;i++){
+      const c=l[i];
+      if (q) { if (c==='"' && l[i+1]==='"'){cur+='"';i++} else if (c==='"') q=false; else cur+=c; }
+      else { if (c==='"') q=true; else if (c===',') {out.push(cur);cur=''} else cur+=c; }
+    }
+    out.push(cur); return out;
+  };
+  const hdr = parseLine(lines[0]);
+  return lines.slice(1).map(l => { const v = parseLine(l); const o = {}; hdr.forEach((h,i)=>o[h]=v[i]); return o; });
+}
+function xmlToJson(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  const err = doc.querySelector('parsererror'); if (err) return {error:'Invalid XML'};
+  const walk = node => {
+    const obj = {};
+    if (node.attributes) for (const a of node.attributes) obj['@'+a.name] = a.value;
+    const kids = [...node.children];
+    if (!kids.length) { const t = node.textContent.trim(); return Object.keys(obj).length ? {...obj, '#text':t} : t; }
+    kids.forEach(c => {
+      const v = walk(c);
+      if (obj[c.tagName] !== undefined) { if (!Array.isArray(obj[c.tagName])) obj[c.tagName]=[obj[c.tagName]]; obj[c.tagName].push(v); }
+      else obj[c.tagName] = v;
+    });
+    return obj;
+  };
+  return { [doc.documentElement.tagName]: walk(doc.documentElement) };
+}
+function jsonToXml(obj, rootName='root') {
+  const esc = s => String(s).replace(/[<>&"']/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'})[c]);
+  const build = (k, v) => {
+    if (v === null || v === undefined) return `<${k}/>`;
+    if (Array.isArray(v)) return v.map(x => build(k, x)).join('');
+    if (typeof v === 'object') {
+      const attrs = Object.keys(v).filter(x=>x.startsWith('@')).map(x=>` ${x.slice(1)}="${esc(v[x])}"`).join('');
+      const inner = Object.entries(v).filter(([x])=>!x.startsWith('@') && x!=='#text').map(([kk,vv])=>build(kk,vv)).join('');
+      const text = v['#text'] ? esc(v['#text']) : '';
+      return `<${k}${attrs}>${text}${inner}</${k}>`;
+    }
+    return `<${k}>${esc(v)}</${k}>`;
+  };
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' + build(rootName, obj);
+}
+
+// ---------- HASH / UUID ----------
+function genHash(s, algo) {
+  if (!window.CryptoJS) return 'CryptoJS not loaded';
+  switch(algo) {
+    case 'md5': return CryptoJS.MD5(s).toString();
+    case 'sha1': return CryptoJS.SHA1(s).toString();
+    case 'sha256': return CryptoJS.SHA256(s).toString();
+    case 'sha512': return CryptoJS.SHA512(s).toString();
+  }
+}
+function uuid4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3|0x8); return v.toString(16);
+  });
+}
+
+// ---------- ENTROPY ----------
+function entropy(s) {
+  if (!s) return 0;
+  const freq = {};
+  for (const c of s) freq[c] = (freq[c]||0) + 1;
+  const len = s.length;
+  let H = 0;
+  for (const k in freq) { const p = freq[k]/len; H -= p * Math.log2(p); }
+  return H;
+}
+
+// ---------- TOOL REGISTRY ----------
+const TOOLS = {
+  encoding: {
+    label: 'Encoding & Decoding', icon: 'code-2', tools: [
+      { id:'base64', name:'Base64', desc:'Encode/decode Base64' },
+      { id:'url', name:'URL Encoding', desc:'Encode/decode URL components' },
+      { id:'html-entity', name:'HTML Entities', desc:'HTML entity encode/decode' },
+      { id:'unicode', name:'Unicode', desc:'Unicode escape sequences' },
+      { id:'ascii', name:'ASCII', desc:'ASCII code points' },
+      { id:'hex', name:'Hex', desc:'Hexadecimal encode/decode' },
+      { id:'binary', name:'Binary', desc:'Binary 0/1 encode/decode' },
+      { id:'rot13', name:'ROT13', desc:'Caesar cipher' },
+      { id:'jwt', name:'JWT Decoder', desc:'Decode JSON Web Tokens' },
+      { id:'qp', name:'Quoted-Printable', desc:'QP encode/decode' },
+      { id:'mime-word', name:'MIME Word', desc:'=?utf-8?B?...?= decoder' },
+      { id:'uu', name:'UUEncode', desc:'UU encode/decode' },
+      { id:'puny', name:'Punycode', desc:'IDN punycode' },
+    ]
+  },
+  html: {
+    label: 'HTML Tools', icon: 'file-code', tools: [
+      { id:'html-to-text', name:'HTML → Text', desc:'Extract readable text' },
+      { id:'text-to-html', name:'Text → HTML', desc:'Convert plain text to HTML' },
+      { id:'html-analyzer', name:'HTML Analyzer', desc:'Inspect HTML structure' },
+    ]
+  },
+  email: {
+    label: 'Email Marketing', icon: 'mail', tools: [
+      { id:'mime-parser', name:'MIME Parser', desc:'Parse .eml files' },
+      { id:'header-analyzer', name:'Header Analyzer', desc:'SPF/DKIM/DMARC' },
+      { id:'qp-inspector', name:'QP Inspector', desc:'Visualize Quoted-Printable' },
+    ]
+  },
+  image: {
+    label: 'Image Tools', icon: 'image', tools: [
+      { id:'img-to-b64', name:'Image → Base64', desc:'Encode images' },
+      { id:'b64-to-img', name:'Base64 → Image', desc:'Decode and preview' },
+      { id:'img-meta', name:'Image Metadata', desc:'Dimensions, EXIF' },
+      { id:'img-convert', name:'Image Converter', desc:'PNG/JPG/WEBP/BMP' },
+      { id:'ocr', name:'OCR', desc:'Extract text from image' },
+    ]
+  },
+  files: {
+    label: 'File Conversion', icon: 'file-json', tools: [
+      { id:'json-csv', name:'JSON ↔ CSV', desc:'Convert JSON and CSV' },
+      { id:'json-xml', name:'JSON ↔ XML', desc:'Convert JSON and XML' },
+    ]
+  },
+  dev: {
+    label: 'Developer Tools', icon: 'wrench', tools: [
+      { id:'json-format', name:'JSON Formatter', desc:'Pretty/minify/validate' },
+      { id:'xml-format', name:'XML Formatter', desc:'Pretty/minify' },
+      { id:'regex', name:'Regex Tester', desc:'Live regex matching' },
+      { id:'hash', name:'Hash Generator', desc:'MD5/SHA1/SHA256/SHA512' },
+      { id:'uuid', name:'UUID Generator', desc:'Generate v4 UUIDs' },
+    ]
+  },
+  smart: {
+    label: 'Smart & Advanced', icon: 'sparkles', tools: [
+      { id:'detect', name:'Smart Detector', desc:'Auto-detect format' },
+      { id:'workflow', name:'Workflow Builder', desc:'Chain transformations' },
+      { id:'diff', name:'Diff Viewer', desc:'Compare two texts' },
+      { id:'hex-viewer', name:'Hex Viewer', desc:'File hex dump' },
+      { id:'entropy', name:'Entropy Calculator', desc:'Shannon entropy' },
+      { id:'qr', name:'QR Code', desc:'Generate / read QR' },
+    ]
+  },
+};
+
+// ---------- COMPONENTS ----------
+function el(tag, props={}, ...children) {
+  const n = document.createElement(tag);
+  for (const k in props) {
+    if (k === 'class') n.className = props[k];
+    else if (k === 'style' && typeof props[k]==='object') Object.assign(n.style, props[k]);
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2).toLowerCase(), props[k]);
+    else if (k === 'html') n.innerHTML = props[k];
+    else if (props[k] !== undefined && props[k] !== null) n.setAttribute(k, props[k]);
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return n;
+}
+
+function icon(name, size=16) {
+  const i = el('i', {'data-lucide':name});
+  i.style.width = size+'px'; i.style.height = size+'px';
+  return i;
+}
+
+// ---------- TOOL RENDERERS ----------
+const Renderers = {};
+
+// Generic bidirectional encoder
+function makeBidirectional(toolId, label, encodeFn, decodeFn) {
+  Renderers[toolId] = () => {
+    const wrap = el('div', {class:'space-y-3'});
+    const counts = el('div', {class:'text-xs text-muted flex gap-4 mt-1'});
+    const input = el('textarea', {class:'textarea', placeholder:'Input...'});
+    const output = el('textarea', {class:'textarea', readonly:'true', placeholder:'Output...'});
+    let mode = 'encode';
+    const updateCounts = () => { counts.textContent = `${input.value.length} chars · ${new Blob([input.value]).size} bytes`; };
+    const run = () => {
+      if (!input.value) { output.value=''; updateCounts(); return; }
+      try { output.value = mode==='encode' ? encodeFn(input.value) : decodeFn(input.value); }
+      catch(e) { output.value = 'Error: ' + e.message; }
+      addHistory(toolId, input.value, output.value);
+      updateCounts();
+    };
+    input.addEventListener('input', run);
+    const modeRow = el('div', {class:'flex items-center justify-between flex-wrap gap-2'},
+      el('div', {class:'flex gap-1'},
+        el('button', {class:'chip active', onclick:e=>{mode='encode';e.currentTarget.classList.add('active');e.currentTarget.nextElementSibling.classList.remove('active');run()}}, 'Encode'),
+        el('button', {class:'chip', onclick:e=>{mode='decode';e.currentTarget.classList.add('active');e.currentTarget.previousElementSibling.classList.remove('active');run()}}, 'Decode'),
+      ),
+      el('div', {class:'flex gap-1'},
+        el('button', {class:'btn btn-ghost', onclick:()=>copyText(output.value)}, icon('copy',14),'Copy'),
+        el('button', {class:'btn btn-ghost', onclick:()=>{input.value='';output.value='';updateCounts()}}, icon('eraser',14),'Clear'),
+        el('button', {class:'btn btn-ghost', onclick:()=>{const t=input.value;input.value=output.value;output.value=t;run()}}, icon('arrow-left-right',14),'Swap'),
+      )
+    );
+    wrap.append(modeRow,
+      el('div', {class:'split-grid'},
+        el('div', null, el('label',{class:'text-xs text-muted block mb-1'},'Input'), input, counts),
+        el('div', null, el('label',{class:'text-xs text-muted block mb-1'},'Output'), output)
+      )
+    );
+    return wrap;
+  };
+}
+
+makeBidirectional('base64','Base64', Conv.base64Encode, Conv.base64Decode);
+makeBidirectional('url','URL', Conv.urlEncode, Conv.urlDecode);
+makeBidirectional('html-entity','HTML', Conv.htmlEncode, Conv.htmlDecode);
+makeBidirectional('unicode','Unicode', Conv.unicodeEncode, Conv.unicodeDecode);
+makeBidirectional('ascii','ASCII', Conv.asciiEncode, Conv.asciiDecode);
+makeBidirectional('hex','Hex', Conv.hexEncode, Conv.hexDecode);
+makeBidirectional('binary','Binary', Conv.binaryEncode, Conv.binaryDecode);
+makeBidirectional('qp','QP', Conv.qpEncode, Conv.qpDecode);
+makeBidirectional('uu','UU', Conv.uuEncode, Conv.uuDecode);
+makeBidirectional('puny','Puny', Conv.punyEncode, Conv.punyDecode);
+
+// ROT13 (single direction since it's symmetric)
+Renderers['rot13'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'Input...'});
+  const output = el('textarea',{class:'textarea',readonly:'true'});
+  input.addEventListener('input', ()=> output.value = Conv.rot13(input.value));
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex justify-end gap-1'},
+      el('button',{class:'btn btn-ghost', onclick:()=>copyText(output.value)}, icon('copy',14),'Copy'),
+    ),
+    el('div',{class:'split-grid'},
+      el('div', null, el('label',{class:'text-xs text-muted block mb-1'},'Input'), input),
+      el('div', null, el('label',{class:'text-xs text-muted block mb-1'},'Output (ROT13 — same op decodes)'), output)
+    )
+  );
+};
+
+// MIME word
+Renderers['mime-word'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'=?UTF-8?B?...?='});
+  const output = el('textarea',{class:'textarea',readonly:'true'});
+  input.addEventListener('input', ()=> output.value = Conv.mimeDecode(input.value));
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex justify-end'},
+      el('button',{class:'btn btn-ghost', onclick:()=>copyText(output.value)}, icon('copy',14),'Copy')
+    ),
+    el('div',{class:'split-grid'},
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'MIME encoded-word'),input),
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Decoded'),output))
+  );
+};
+
+// JWT
+Renderers['jwt'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'eyJhbGciOi...'});
+  const out = el('div',{class:'space-y-2'});
+  input.addEventListener('input', () => {
+    out.innerHTML = '';
+    if (!input.value.trim()) return;
+    const r = Conv.jwtDecode(input.value);
+    if (r.error) { out.append(el('div',{class:'surface rounded-lg p-3 text-sm', style:{color:'var(--danger)'}}, r.error)); return; }
+    const card = (title, json) => el('div',{class:'surface rounded-lg p-3'},
+      el('div',{class:'flex justify-between items-center mb-1'},
+        el('span',{class:'text-xs font-semibold uppercase tracking-wide text-muted'}, title),
+        el('button',{class:'btn btn-ghost text-xs', onclick:()=>copyText(JSON.stringify(json,null,2))}, icon('copy',12),'Copy')
+      ),
+      el('pre',{class:'mono', style:{margin:0}}, JSON.stringify(json,null,2))
+    );
+    out.append(card('Header', r.header), card('Payload', r.payload));
+    out.append(el('div',{class:'surface rounded-lg p-3'},
+      el('div',{class:'text-xs font-semibold uppercase tracking-wide text-muted mb-1'},'Signature'),
+      el('pre',{class:'mono', style:{margin:0}}, r.signature)
+    ));
+    if (r.payload?.exp) {
+      const d = new Date(r.payload.exp*1000);
+      const expired = d < new Date();
+      out.append(el('div',{class:'text-xs', style:{color: expired?'var(--danger)':'var(--success)'}}, 
+        `Expires: ${d.toLocaleString()} ${expired?'(EXPIRED)':'(valid)'}`));
+    }
+  });
+  return el('div',{class:'space-y-3'},
+    el('label',{class:'text-xs text-muted block'},'JWT Token'),
+    input, out
+  );
+};
+
+// HTML → Text
+Renderers['html-to-text'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'<html>...'});
+  const output = el('textarea',{class:'textarea',readonly:'true'});
+  const opts = { preserveBreaks:true, preserveLinks:false, removeScripts:true, removeStyles:true, removeComments:true };
+  const run = () => { try{ output.value = htmlToText(input.value, opts); }catch(e){ output.value='Error'; } };
+  input.addEventListener('input', run);
+  const mkChip = (k, label) => {
+    const c = el('button',{class:'chip '+(opts[k]?'active':''), onclick:e=>{opts[k]=!opts[k];e.currentTarget.classList.toggle('active');run();}}, label);
+    return c;
+  };
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex flex-wrap gap-1'},
+      mkChip('preserveBreaks','Line breaks'),
+      mkChip('preserveLinks','Preserve links'),
+      mkChip('removeScripts','Remove scripts'),
+      mkChip('removeStyles','Remove styles'),
+      mkChip('removeComments','Remove comments'),
+      el('button',{class:'btn btn-ghost ml-auto', onclick:()=>copyText(output.value)}, icon('copy',14),'Copy')
+    ),
+    el('div',{class:'split-grid'},
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'HTML'),input),
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Text'),output))
+  );
+};
+
+// Text → HTML
+Renderers['text-to-html'] = () => {
+  const input = el('textarea',{class:'textarea'});
+  const output = el('textarea',{class:'textarea',readonly:'true'});
+  const opts = { mode:'paragraphs', autoLink:true };
+  const run = () => output.value = textToHtml(input.value, opts);
+  input.addEventListener('input', run);
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex flex-wrap gap-2 items-center'},
+      el('select',{class:'input',style:{width:'auto'}, onchange:e=>{opts.mode=e.target.value;run()}},
+        el('option',{value:'paragraphs'},'Paragraphs'),
+        el('option',{value:'email'},'Email-safe (table)'),
+        el('option',{value:'simple'},'Simple <br>')
+      ),
+      el('label',{class:'flex items-center gap-1 text-xs'},
+        el('input',{type:'checkbox',checked:'true',onchange:e=>{opts.autoLink=e.target.checked;run()}}),
+        'Auto-link URLs'),
+      el('button',{class:'btn btn-ghost ml-auto', onclick:()=>copyText(output.value)}, icon('copy',14),'Copy')
+    ),
+    el('div',{class:'split-grid'},
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Plain text'),input),
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'HTML'),output))
+  );
+};
+
+// HTML Analyzer
+Renderers['html-analyzer'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'<html>...'});
+  const out = el('div',{class:'space-y-3'});
+  input.addEventListener('input', () => {
+    out.innerHTML = '';
+    if (!input.value.trim()) return;
+    const a = analyzeHtml(input.value);
+    const section = (title, count, content) => el('details',{open:'true'},
+      el('summary',{class:'text-sm font-medium py-2'}, `${title} `, el('span',{class:'badge', style:{background:'var(--surface-2)',color:'var(--text-muted)'}}, String(count))),
+      el('div',{class:'tree-node pt-1'}, content)
+    );
+    out.append(section('Title', 1, el('div',{class:'text-sm'}, a.title)));
+    out.append(section('Meta tags', a.metas.length, el('div',{class:'space-y-1'},
+      ...a.metas.map(m => el('div',{class:'text-xs flex gap-2'},
+        el('span',{class:'badge',style:{background:'var(--surface-2)'}}, m.name),
+        el('span',{class:'text-muted'}, m.content.slice(0,120))
+      ))
+    )));
+    out.append(section('Images', a.images.length, el('div',{class:'space-y-1'},
+      ...a.images.slice(0,50).map(i => el('div',{class:'text-xs text-muted truncate'}, `${i.src} ${i.alt?`(${i.alt})`:''}`))
+    )));
+    out.append(section('Links', a.links.length, el('div',{class:'space-y-1'},
+      ...a.links.slice(0,50).map(l => el('div',{class:'text-xs truncate'}, l.text+' → ', el('span',{class:'text-muted'}, l.href)))
+    )));
+    out.append(section('Stylesheets', a.css.length, el('div',{class:'space-y-1'}, ...a.css.map(c=>el('div',{class:'text-xs text-muted truncate'},c)))));
+    out.append(section('Scripts', a.scripts.length, el('div',{class:'space-y-1'}, ...a.scripts.map(s=>el('div',{class:'text-xs text-muted truncate'},s)))));
+    out.append(section('Forms', a.forms.length, el('div',{class:'space-y-1'},
+      ...a.forms.map(f=>el('div',{class:'text-xs text-muted'}, `${f.method.toUpperCase()} ${f.action} (${f.inputs} fields)`))
+    )));
+  });
+  return el('div',{class:'space-y-3'},
+    el('label',{class:'text-xs text-muted block'},'HTML source'),
+    input,
+    out
+  );
+};
+
+// MIME Parser (.eml)
+Renderers['mime-parser'] = () => {
+  const drop = makeDropZone((files) => {
+    if (!files.length) return;
+    const reader = new FileReader();
+    reader.onload = () => { textarea.value = reader.result; run(); };
+    reader.readAsText(files[0]);
+  }, '.eml');
+  const textarea = el('textarea',{class:'textarea', placeholder:'Paste .eml content or drop a file above'});
+  const out = el('div',{class:'space-y-3'});
+  const run = () => {
+    out.innerHTML='';
+    if (!textarea.value.trim()) return;
+    const eml = parseEml(textarea.value);
+    out.append(el('div',{class:'surface rounded-lg p-3'},
+      el('div',{class:'text-xs font-semibold uppercase text-muted mb-2'},'Headers'),
+      el('pre',{class:'mono',style:{margin:0,maxHeight:'200px',overflow:'auto'}},
+        Object.entries(eml.headers).map(([k,v])=>`${k}: ${v}`).join('\n'))
+    ));
+    if (eml.boundary) {
+      out.append(el('div',{class:'surface rounded-lg p-3'},
+        el('div',{class:'text-xs font-semibold uppercase text-muted mb-1'},'Boundary'),
+        el('code',{class:'mono'}, eml.boundary)
+      ));
+    }
+    if (eml.parts.length) {
+      out.append(el('div',{class:'surface rounded-lg p-3'},
+        el('div',{class:'text-xs font-semibold uppercase text-muted mb-2'}, `MIME parts (${eml.parts.length})`),
+        ...eml.parts.map((p,i)=>el('details',{class:'mb-2'},
+          el('summary',{class:'text-sm py-1'}, `Part ${i+1} — `, el('span',{class:'badge',style:{background:'var(--surface-2)'}}, p.headers['content-type']?.split(';')[0]||'unknown')),
+          el('div',{class:'tree-node'},
+            el('div',{class:'text-xs space-y-1 mb-2'},
+              ...Object.entries(p.headers).map(([k,v])=>el('div',null,el('span',{class:'text-muted'},k+': '),v))
+            ),
+            el('pre',{class:'mono surface-2 p-2 rounded',style:{maxHeight:'150px',overflow:'auto'}}, p.body.slice(0,2000))
+          )
+        ))
+      ));
+    } else {
+      out.append(el('div',{class:'surface rounded-lg p-3'},
+        el('div',{class:'text-xs font-semibold uppercase text-muted mb-2'},'Body'),
+        el('pre',{class:'mono',style:{margin:0,maxHeight:'200px',overflow:'auto'}}, eml.body.slice(0,3000))
+      ));
+    }
+  };
+  textarea.addEventListener('input', run);
+  return el('div',{class:'space-y-3'}, drop, textarea, out);
+};
+
+// Header Analyzer
+Renderers['header-analyzer'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'Paste full email headers...'});
+  const out = el('div',{class:'space-y-3'});
+  input.addEventListener('input', () => {
+    out.innerHTML='';
+    if (!input.value.trim()) return;
+    const { headers } = parseEml(input.value + '\n\n');
+    const a = analyzeEmailHeaders(headers);
+    const statusColor = s => ({pass:'var(--success)',fail:'var(--danger)',neutral:'var(--warning)',softfail:'var(--warning)'})[s?.toLowerCase()]||'var(--text-muted)';
+    out.append(el('div',{class:'grid grid-cols-3 gap-2'},
+      ['SPF','DKIM','DMARC'].map(name => {
+        const v = a[name.toLowerCase()];
+        return el('div',{class:'surface rounded-lg p-3 text-center'},
+          el('div',{class:'text-xs text-muted'}, name),
+          el('div',{class:'text-lg font-semibold mt-1', style:{color:statusColor(v)}}, v)
+        );
+      })
+    ));
+    out.append(el('div',{class:'surface rounded-lg p-3 text-sm space-y-1'},
+      ...['from','to','subject','date','returnPath'].map(k => el('div',{class:'flex gap-2'},
+        el('span',{class:'text-muted text-xs w-24'}, k), el('span',{class:'flex-1 break-all'}, a[k])
+      ))
+    ));
+    const received = (headers['received']||'').split(/from\s/i).filter(x=>x.trim());
+    if (received.length) out.append(el('div',{class:'surface rounded-lg p-3'},
+      el('div',{class:'text-xs font-semibold uppercase text-muted mb-2'},'Received chain'),
+      el('pre',{class:'mono',style:{margin:0,maxHeight:'200px',overflow:'auto'}}, received.map((r,i)=>`${i+1}. ${r.trim()}`).join('\n'))
+    ));
+  });
+  return el('div',{class:'space-y-3'}, input, out);
+};
+
+// QP Inspector
+Renderers['qp-inspector'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'Paste Quoted-Printable text...'});
+  const decoded = el('textarea',{class:'textarea',readonly:'true'});
+  const viz = el('pre',{class:'mono surface-2 p-3 rounded-lg',style:{maxHeight:'200px',overflow:'auto'}});
+  input.addEventListener('input', () => {
+    decoded.value = Conv.qpDecode(input.value);
+    let h = '';
+    for (let i=0; i<input.value.length; i++) {
+      const c = input.value[i];
+      if (c==='=' && i+2<input.value.length) {
+        const code = input.value.substr(i+1,2);
+        if (/[0-9A-F]{2}/.test(code)) { h += `<span style="background:color-mix(in srgb,var(--accent) 20%, transparent);color:var(--accent)">=${code}</span>`; i+=2; }
+        else if (code==='\n' || code.startsWith('\r')) { h += `<span style="color:var(--text-muted)">=↩</span>`; i+= code.startsWith('\r')?2:1; }
+        else { h += `<span style="background:color-mix(in srgb,var(--danger) 20%, transparent);color:var(--danger)">=${code}</span>`; i+=2; }
+      } else h += c==='<'?'&lt;':c==='>'?'&gt;':c;
+    }
+    viz.innerHTML = h;
+  });
+  return el('div',{class:'space-y-3'},
+    el('label',{class:'text-xs text-muted block'},'Quoted-Printable input'),
+    input,
+    el('label',{class:'text-xs text-muted block'},'Visualizer (encoded sequences highlighted)'),
+    viz,
+    el('label',{class:'text-xs text-muted block'},'Decoded'),
+    decoded
+  );
+};
+
+// Image → Base64
+Renderers['img-to-b64'] = () => {
+  const preview = el('div',{class:'flex justify-center items-center', style:{minHeight:'120px'}});
+  const out = el('textarea',{class:'textarea',readonly:'true',style:{minHeight:'120px'}});
+  const dataUriCheck = el('input',{type:'checkbox',checked:'true'});
+  const handle = (files) => {
+    if (!files.length) return;
+    const f = files[0];
+    const r = new FileReader();
+    r.onload = () => {
+      const img = el('img',{src:r.result,style:{maxHeight:'200px',maxWidth:'100%',borderRadius:'.5rem'}});
+      preview.innerHTML=''; preview.append(img);
+      out.value = dataUriCheck.checked ? r.result : r.result.split(',')[1];
+    };
+    r.readAsDataURL(f);
+  };
+  const drop = makeDropZone(handle, 'image/*', true);
+  dataUriCheck.addEventListener('change', () => {
+    if (!out.value) return;
+    if (dataUriCheck.checked && !out.value.startsWith('data:')) {
+      const img = preview.querySelector('img');
+      if (img) out.value = img.src;
+    } else if (!dataUriCheck.checked && out.value.startsWith('data:')) {
+      out.value = out.value.split(',')[1];
+    }
+  });
+  document.addEventListener('paste', e => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) if (item.type.startsWith('image/')) {
+      handle([item.getAsFile()]); break;
+    }
+  });
+  return el('div',{class:'space-y-3'},
+    drop,
+    preview,
+    el('div',{class:'flex justify-between items-center'},
+      el('label',{class:'flex items-center gap-2 text-sm'}, dataUriCheck, 'Include Data URI prefix'),
+      el('button',{class:'btn btn-ghost', onclick:()=>copyText(out.value)}, icon('copy',14),'Copy')
+    ),
+    out
+  );
+};
+
+// Base64 → Image
+Renderers['b64-to-img'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'Paste Base64 or Data URI'});
+  const preview = el('div',{class:'flex justify-center items-center surface rounded-lg', style:{minHeight:'200px'}});
+  input.addEventListener('input', () => {
+    preview.innerHTML='';
+    let src = input.value.trim();
+    if (!src) return;
+    if (!src.startsWith('data:')) src = 'data:image/png;base64,' + src.replace(/\s/g,'');
+    const img = el('img',{src,style:{maxHeight:'400px',maxWidth:'100%',borderRadius:'.5rem'}});
+    img.onerror = () => preview.innerHTML = '<div class="text-sm" style="color:var(--danger)">Invalid Base64 image</div>';
+    preview.append(img);
+  });
+  return el('div',{class:'space-y-3'}, input, preview);
+};
+
+// Image Metadata
+Renderers['img-meta'] = () => {
+  const out = el('div',{class:'space-y-2'});
+  const drop = makeDropZone((files) => {
+    if (!files.length) return;
+    const f = files[0];
+    const r = new FileReader();
+    r.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const rows = [
+          ['Filename', f.name], ['Format', f.type], ['Size', (f.size/1024).toFixed(2)+' KB'],
+          ['Width', img.width+' px'], ['Height', img.height+' px'],
+          ['Aspect ratio', (img.width/img.height).toFixed(3)],
+        ];
+        out.innerHTML='';
+        out.append(el('img',{src:r.result,style:{maxHeight:'200px',maxWidth:'100%',borderRadius:'.5rem'}}));
+        out.append(el('div',{class:'surface rounded-lg p-3'},
+          ...rows.map(([k,v])=>el('div',{class:'flex justify-between text-sm py-1', style:{borderBottom:'1px solid var(--border)'}},
+            el('span',{class:'text-muted'},k),el('span',null,v)
+          ))
+        ));
+        // EXIF
+        if (window.EXIF) {
+          EXIF.getData(img, function() {
+            const tags = EXIF.getAllTags(this);
+            if (Object.keys(tags).length) {
+              out.append(el('div',{class:'surface rounded-lg p-3'},
+                el('div',{class:'text-xs font-semibold uppercase text-muted mb-2'},'EXIF data'),
+                el('pre',{class:'mono',style:{margin:0,maxHeight:'200px',overflow:'auto'}}, JSON.stringify(tags,null,2))
+              ));
+            }
+          });
+        }
+      };
+      img.src = r.result;
+    };
+    r.readAsDataURL(f);
+  }, 'image/*', true);
+  return el('div',{class:'space-y-3'}, drop, out);
+};
+
+// Image Converter
+Renderers['img-convert'] = () => {
+  const out = el('div',{class:'space-y-2'});
+  let imgEl = null;
+  const drop = makeDropZone((files) => {
+    if (!files.length) return;
+    const r = new FileReader();
+    r.onload = () => {
+      imgEl = new Image();
+      imgEl.onload = () => {
+        out.innerHTML='';
+        out.append(el('img',{src:r.result,style:{maxHeight:'200px',borderRadius:'.5rem'}}));
+        out.append(el('div',{class:'flex gap-2 flex-wrap'},
+          ...['image/png','image/jpeg','image/webp','image/bmp'].map(fmt => 
+            el('button',{class:'btn', onclick:()=>{
+              const c = document.createElement('canvas');
+              c.width = imgEl.width; c.height = imgEl.height;
+              c.getContext('2d').drawImage(imgEl,0,0);
+              const url = c.toDataURL(fmt);
+              const a = document.createElement('a');
+              a.href = url; a.download = `converted.${fmt.split('/')[1].replace('jpeg','jpg')}`;
+              a.click();
+              toast('Downloaded');
+            }}, icon('download',14), fmt.split('/')[1].toUpperCase())
+          )
+        ));
+      };
+      imgEl.src = r.result;
+    };
+    r.readAsDataURL(files[0]);
+  }, 'image/*', true);
+  return el('div',{class:'space-y-3'}, drop, out);
+};
+
+// OCR
+Renderers['ocr'] = () => {
+  const out = el('div',{class:'space-y-2'});
+  const result = el('textarea',{class:'textarea',readonly:'true'});
+  const status = el('div',{class:'text-xs text-muted'});
+  const drop = makeDropZone(async (files) => {
+    if (!files.length) return;
+    if (!window.Tesseract) { status.textContent = 'Tesseract not loaded'; return; }
+    status.textContent = 'Loading OCR engine...';
+    try {
+      const { data } = await Tesseract.recognize(files[0], 'eng', {
+        logger: m => status.textContent = `${m.status} ${m.progress?Math.round(m.progress*100)+'%':''}`
+      });
+      result.value = data.text;
+      status.textContent = `Done — ${Math.round(data.confidence)}% confidence`;
+    } catch (e) { status.textContent = 'Error: '+e.message; }
+  }, 'image/*', true);
+  return el('div',{class:'space-y-3'}, drop, status,
+    el('div',{class:'flex justify-end'}, el('button',{class:'btn btn-ghost', onclick:()=>copyText(result.value)}, icon('copy',14),'Copy')),
+    result
+  );
+};
+
+// JSON ↔ CSV
+Renderers['json-csv'] = () => {
+  const input = el('textarea',{class:'textarea'});
+  const output = el('textarea',{class:'textarea',readonly:'true'});
+  let mode = 'j2c';
+  const run = () => {
+    if (!input.value.trim()) { output.value=''; return; }
+    try {
+      if (mode === 'j2c') output.value = jsonToCsv(JSON.parse(input.value));
+      else output.value = JSON.stringify(csvToJson(input.value), null, 2);
+    } catch(e) { output.value = 'Error: '+e.message; }
+  };
+  input.addEventListener('input', run);
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex gap-1'},
+      el('button',{class:'chip active',onclick:e=>{mode='j2c';e.currentTarget.classList.add('active');e.currentTarget.nextElementSibling.classList.remove('active');run()}},'JSON → CSV'),
+      el('button',{class:'chip',onclick:e=>{mode='c2j';e.currentTarget.classList.add('active');e.currentTarget.previousElementSibling.classList.remove('active');run()}},'CSV → JSON'),
+      el('button',{class:'btn btn-ghost ml-auto', onclick:()=>copyText(output.value)}, icon('copy',14),'Copy')
+    ),
+    el('div',{class:'split-grid'},
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Input'),input),
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Output'),output))
+  );
+};
+
+// JSON ↔ XML
+Renderers['json-xml'] = () => {
+  const input = el('textarea',{class:'textarea'});
+  const output = el('textarea',{class:'textarea',readonly:'true'});
+  let mode = 'j2x';
+  const run = () => {
+    if (!input.value.trim()) { output.value=''; return; }
+    try {
+      if (mode === 'j2x') output.value = jsonToXml(JSON.parse(input.value));
+      else output.value = JSON.stringify(xmlToJson(input.value), null, 2);
+    } catch(e) { output.value = 'Error: '+e.message; }
+  };
+  input.addEventListener('input', run);
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex gap-1'},
+      el('button',{class:'chip active',onclick:e=>{mode='j2x';e.currentTarget.classList.add('active');e.currentTarget.nextElementSibling.classList.remove('active');run()}},'JSON → XML'),
+      el('button',{class:'chip',onclick:e=>{mode='x2j';e.currentTarget.classList.add('active');e.currentTarget.previousElementSibling.classList.remove('active');run()}},'XML → JSON'),
+      el('button',{class:'btn btn-ghost ml-auto', onclick:()=>copyText(output.value)}, icon('copy',14),'Copy')
+    ),
+    el('div',{class:'split-grid'},
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Input'),input),
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Output'),output))
+  );
+};
+
+// JSON Formatter
+Renderers['json-format'] = () => {
+  const input = el('textarea',{class:'textarea'});
+  const output = el('div',{class:'surface rounded-lg p-3',style:{minHeight:'200px',overflow:'auto'}});
+  const status = el('div',{class:'text-xs'});
+  const render = (mode) => {
+    if (!input.value.trim()) { output.innerHTML=''; status.textContent=''; return; }
+    try {
+      const o = JSON.parse(input.value);
+      if (mode==='pretty') { output.innerHTML=''; output.append(el('pre',{class:'mono',style:{margin:0}}, JSON.stringify(o,null,2))); }
+      else if (mode==='min') { output.innerHTML=''; output.append(el('pre',{class:'mono',style:{margin:0}}, JSON.stringify(o))); }
+      else if (mode==='tree') { output.innerHTML=''; output.append(renderTree(o)); }
+      status.textContent = '✓ Valid JSON';
+      status.style.color = 'var(--success)';
+    } catch(e) {
+      status.textContent = '✗ '+e.message;
+      status.style.color = 'var(--danger)';
+    }
+  };
+  const renderTree = (o, key) => {
+    if (o === null) return el('span',{class:'mono'}, (key?key+': ':'')+'null');
+    if (typeof o !== 'object') return el('span',{class:'mono'}, (key?key+': ':'')+JSON.stringify(o));
+    const det = el('details',{open:'true'},
+      el('summary',{class:'mono text-sm'}, (key?key+': ':'')+(Array.isArray(o)?'[':'{')+ ` ${Object.keys(o).length} `+(Array.isArray(o)?']':'}'))
+    );
+    const body = el('div',{class:'tree-node'});
+    for (const k in o) body.append(renderTree(o[k], k));
+    det.append(body);
+    return det;
+  };
+  input.addEventListener('input', ()=>render('pretty'));
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex gap-1 flex-wrap'},
+      el('button',{class:'btn', onclick:()=>render('pretty')},icon('align-left',14),'Pretty'),
+      el('button',{class:'btn', onclick:()=>render('min')},icon('minimize-2',14),'Minify'),
+      el('button',{class:'btn', onclick:()=>render('tree')},icon('list-tree',14),'Tree'),
+      el('div',{class:'ml-auto'},status)
+    ),
+    input,
+    output
+  );
+};
+
+// XML Formatter
+Renderers['xml-format'] = () => {
+  const input = el('textarea',{class:'textarea'});
+  const output = el('textarea',{class:'textarea',readonly:'true'});
+  const status = el('div',{class:'text-xs'});
+  const fmt = (xml) => {
+    let formatted = '', indent = '';
+    xml.split(/>\s*</).forEach(node => {
+      if (node.match(/^\/\w/)) indent = indent.substring(2);
+      formatted += indent + '<' + node + '>\n';
+      if (node.match(/^<?\w[^>]*[^\/]$/) && !node.startsWith('?')) indent += '  ';
+    });
+    return formatted.substring(1, formatted.length-2);
+  };
+  const run = (mode) => {
+    if (!input.value.trim()) { output.value=''; return; }
+    try {
+      const doc = new DOMParser().parseFromString(input.value,'text/xml');
+      const err = doc.querySelector('parsererror');
+      if (err) { status.textContent='✗ Invalid XML'; status.style.color='var(--danger)'; output.value=err.textContent; return; }
+      status.textContent='✓ Valid XML'; status.style.color='var(--success)';
+      if (mode==='min') output.value = input.value.replace(/>\s+</g,'><').trim();
+      else output.value = fmt(input.value.replace(/>\s+</g,'><'));
+    } catch(e) { status.textContent='✗ '+e.message; status.style.color='var(--danger)'; }
+  };
+  input.addEventListener('input', ()=>run('pretty'));
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex gap-1'},
+      el('button',{class:'btn', onclick:()=>run('pretty')},'Pretty'),
+      el('button',{class:'btn', onclick:()=>run('min')},'Minify'),
+      el('div',{class:'ml-auto'},status)
+    ),
+    el('div',{class:'split-grid'},
+      el('div',null,input),
+      el('div',null,output))
+  );
+};
+
+// Regex tester
+Renderers['regex'] = () => {
+  const pattern = el('input',{class:'input',placeholder:'\\d+'});
+  const flags = el('input',{class:'input',placeholder:'gim',style:{maxWidth:'80px'}});
+  const text = el('textarea',{class:'textarea',placeholder:'Test text...'});
+  const out = el('div',{class:'surface rounded-lg p-3',style:{minHeight:'100px'}});
+  const status = el('div',{class:'text-xs'});
+  const run = () => {
+    out.innerHTML='';
+    if (!pattern.value) return;
+    try {
+      const re = new RegExp(pattern.value, flags.value || 'g');
+      const matches = [...text.value.matchAll(re)];
+      status.textContent = `${matches.length} match${matches.length!==1?'es':''}`;
+      status.style.color = matches.length ? 'var(--success)' : 'var(--text-muted)';
+      // Highlight
+      let html = '', last = 0;
+      for (const m of matches) {
+        html += text.value.slice(last, m.index).replace(/</g,'&lt;');
+        html += `<span class="highlight-match">${m[0].replace(/</g,'&lt;')}</span>`;
+        last = m.index + m[0].length;
+      }
+      html += text.value.slice(last).replace(/</g,'&lt;');
+      out.innerHTML = `<pre class="mono" style="margin:0">${html}</pre>`;
+      if (matches.length) {
+        out.append(el('div',{class:'mt-3 text-xs space-y-1'},
+          ...matches.slice(0,20).map((m,i)=>el('div',null,
+            el('span',{class:'text-muted'}, `#${i+1} @${m.index}: `),
+            el('code',{class:'mono'}, m[0]),
+            m.length>1 ? el('span',{class:'text-muted'}, ' groups: '+m.slice(1).join(', ')) : null
+          ))
+        ));
+      }
+    } catch(e) { status.textContent = '✗ '+e.message; status.style.color='var(--danger)'; }
+  };
+  pattern.addEventListener('input', run); flags.addEventListener('input', run); text.addEventListener('input', run);
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex gap-2 items-center'},
+      el('span',{class:'mono'},'/'), pattern, el('span',{class:'mono'},'/'), flags,
+      el('div',{class:'ml-auto'},status)
+    ),
+    text, out
+  );
+};
+
+// Hash generator
+Renderers['hash'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'Text to hash...'});
+  const out = el('div',{class:'space-y-2'});
+  input.addEventListener('input', () => {
+    out.innerHTML='';
+    if (!input.value) return;
+    ['md5','sha1','sha256','sha512'].forEach(a => {
+      const v = genHash(input.value, a);
+      out.append(el('div',{class:'surface rounded-lg p-3 flex items-center gap-3'},
+        el('span',{class:'badge', style:{background:'var(--surface-2)',color:'var(--accent)',minWidth:'70px',textAlign:'center'}}, a.toUpperCase()),
+        el('code',{class:'mono flex-1',style:{wordBreak:'break-all'}}, v),
+        el('button',{class:'btn btn-ghost', onclick:()=>copyText(v)}, icon('copy',14))
+      ));
+    });
+  });
+  return el('div',{class:'space-y-3'}, input, out);
+};
+
+// UUID generator
+Renderers['uuid'] = () => {
+  const out = el('div',{class:'space-y-2'});
+  const count = el('input',{type:'number',class:'input',value:'1',min:'1',max:'100',style:{maxWidth:'100px'}});
+  const gen = () => {
+    out.innerHTML='';
+    const n = parseInt(count.value)||1;
+    const ids = Array.from({length:n}, uuid4);
+    ids.forEach(u => out.append(el('div',{class:'surface rounded-lg p-3 flex items-center gap-3'},
+      el('code',{class:'mono flex-1'}, u),
+      el('button',{class:'btn btn-ghost', onclick:()=>copyText(u)}, icon('copy',14))
+    )));
+    if (n>1) out.append(el('button',{class:'btn', onclick:()=>copyText(ids.join('\n'))}, icon('copy',14),'Copy all'));
+  };
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'flex gap-2 items-center'},
+      el('label',{class:'text-sm text-muted'},'Count:'), count,
+      el('button',{class:'btn btn-primary', onclick:gen}, icon('refresh-cw',14),'Generate')
+    ),
+    out
+  );
+};
+
+// Smart Detector
+Renderers['detect'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'Paste anything...'});
+  const out = el('div',{class:'space-y-2'});
+  input.addEventListener('input', () => {
+    out.innerHTML='';
+    const r = detectFormat(input.value);
+    if (!r.length) { out.append(el('div',{class:'text-sm text-muted'},'No format detected')); return; }
+    r.forEach(d => out.append(el('div',{class:'surface rounded-lg p-3 flex items-center justify-between'},
+      el('div',null,
+        el('div',{class:'font-medium'}, d.type),
+        el('div',{class:'text-xs text-muted'}, `${d.confidence}% confidence`)
+      ),
+      el('div',{class:'flex items-center gap-2'},
+        el('div',{style:{width:'80px',height:'6px',background:'var(--surface-2)',borderRadius:'3px',overflow:'hidden'}},
+          el('div',{style:{width:d.confidence+'%',height:'100%',background:'var(--accent)'}})
+        )
+      )
+    )));
+  });
+  return el('div',{class:'space-y-3'}, input, out);
+};
+
+// Workflow builder (CyberChef-inspired)
+Renderers['workflow'] = () => {
+  const ops = {
+    'base64-decode': { name:'Base64 Decode', fn: Conv.base64Decode },
+    'base64-encode': { name:'Base64 Encode', fn: Conv.base64Encode },
+    'url-decode':    { name:'URL Decode', fn: Conv.urlDecode },
+    'url-encode':    { name:'URL Encode', fn: Conv.urlEncode },
+    'html-decode':   { name:'HTML Entity Decode', fn: Conv.htmlDecode },
+    'qp-decode':     { name:'QP Decode', fn: Conv.qpDecode },
+    'mime-decode':   { name:'MIME Word Decode', fn: Conv.mimeDecode },
+    'hex-decode':    { name:'Hex Decode', fn: Conv.hexDecode },
+    'binary-decode': { name:'Binary Decode', fn: Conv.binaryDecode },
+    'rot13':         { name:'ROT13', fn: Conv.rot13 },
+    'html-to-text':  { name:'HTML → Text', fn: s => htmlToText(s) },
+    'json-pretty':   { name:'JSON Pretty', fn: s => JSON.stringify(JSON.parse(s),null,2) },
+    'md5':           { name:'MD5', fn: s => genHash(s,'md5') },
+    'sha256':        { name:'SHA256', fn: s => genHash(s,'sha256') },
+  };
+  const recipe = [];
+  const input = el('textarea',{class:'textarea',placeholder:'Input...'});
+  const output = el('textarea',{class:'textarea',readonly:'true'});
+  const recipeEl = el('div',{class:'space-y-1'});
+  const run = () => {
+    let v = input.value;
+    try { recipe.forEach(op => { v = ops[op].fn(v); }); output.value = v; }
+    catch(e) { output.value = 'Error in chain: '+e.message; }
+  };
+  const renderRecipe = () => {
+    recipeEl.innerHTML='';
+    recipe.forEach((op,i) => recipeEl.append(el('div',{class:'surface rounded-lg p-2 flex items-center gap-2'},
+      el('span',{class:'text-xs text-muted'}, `${i+1}.`),
+      el('span',{class:'flex-1 text-sm'}, ops[op].name),
+      el('button',{class:'btn btn-ghost', onclick:()=>{recipe.splice(i,1);renderRecipe();run()}}, icon('x',14))
+    )));
+    if (!recipe.length) recipeEl.append(el('div',{class:'text-sm text-muted text-center py-4'},'No operations — add some below'));
+  };
+  input.addEventListener('input', run);
+  renderRecipe();
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'split-grid'},
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Input'),input),
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Output'),output)
+    ),
+    el('div',null,
+      el('label',{class:'text-xs text-muted block mb-1'},'Recipe (executed top-to-bottom)'),
+      recipeEl
+    ),
+    el('div',null,
+      el('label',{class:'text-xs text-muted block mb-1'},'Add operation'),
+      el('div',{class:'flex flex-wrap gap-1'},
+        ...Object.entries(ops).map(([k,v])=>el('button',{class:'chip', onclick:()=>{recipe.push(k);renderRecipe();run()}}, '+ '+v.name))
+      )
+    )
+  );
+};
+
+// Diff Viewer (line-based LCS)
+Renderers['diff'] = () => {
+  const a = el('textarea',{class:'textarea'});
+  const b = el('textarea',{class:'textarea'});
+  const out = el('div',{class:'surface rounded-lg p-3'});
+  const diff = () => {
+    const aL = a.value.split('\n'); const bL = b.value.split('\n');
+    // LCS
+    const dp = Array(aL.length+1).fill(null).map(()=>Array(bL.length+1).fill(0));
+    for (let i=1;i<=aL.length;i++) for (let j=1;j<=bL.length;j++)
+      dp[i][j] = aL[i-1]===bL[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j],dp[i][j-1]);
+    const result = [];
+    let i=aL.length, j=bL.length;
+    while (i>0 && j>0) {
+      if (aL[i-1]===bL[j-1]) { result.unshift({t:' ',v:aL[i-1]}); i--;j--; }
+      else if (dp[i-1][j]>=dp[i][j-1]) { result.unshift({t:'-',v:aL[i-1]}); i--; }
+      else { result.unshift({t:'+',v:bL[j-1]}); j--; }
+    }
+    while (i>0) { result.unshift({t:'-',v:aL[--i]}); }
+    while (j>0) { result.unshift({t:'+',v:bL[--j]}); }
+    out.innerHTML='';
+    result.forEach(r => out.append(el('div',{class:'mono text-xs',style:{
+      background: r.t==='+' ? 'color-mix(in srgb,var(--success) 12%,transparent)' :
+                 r.t==='-' ? 'color-mix(in srgb,var(--danger) 12%,transparent)' : 'transparent',
+      color: r.t==='+' ? 'var(--success)' : r.t==='-' ? 'var(--danger)' : 'var(--text)',
+      padding:'1px 6px'
+    }}, r.t+' '+r.v)));
+  };
+  a.addEventListener('input', diff); b.addEventListener('input', diff);
+  return el('div',{class:'space-y-3'},
+    el('div',{class:'split-grid'},
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Original'),a),
+      el('div',null,el('label',{class:'text-xs text-muted block mb-1'},'Modified'),b)
+    ),
+    el('label',{class:'text-xs text-muted block'},'Diff'),
+    out
+  );
+};
+
+// Hex Viewer
+Renderers['hex-viewer'] = () => {
+  const out = el('div',{class:'surface rounded-lg p-2 scroll-thin',style:{maxHeight:'500px',overflow:'auto'}});
+  const drop = makeDropZone((files) => {
+    if (!files.length) return;
+    const r = new FileReader();
+    r.onload = () => {
+      const bytes = new Uint8Array(r.result);
+      out.innerHTML='';
+      for (let i=0; i<bytes.length; i+=16) {
+        const chunk = bytes.slice(i, i+16);
+        const offset = i.toString(16).padStart(8,'0');
+        const hex = [...chunk].map(b=>b.toString(16).padStart(2,'0')).join(' ');
+        const ascii = [...chunk].map(b => (b>=32 && b<127) ? String.fromCharCode(b) : '.').join('');
+        out.append(el('div',{class:'hex-row'},
+          el('span',{style:{color:'var(--text-muted)'}}, offset),
+          el('span', null, hex),
+          el('span',{style:{color:'var(--accent)'}}, ascii)
+        ));
+        if (i > 16384) { out.append(el('div',{class:'text-xs text-muted text-center p-2'},'Truncated after 1024 lines')); break; }
+      }
+    };
+    r.readAsArrayBuffer(files[0]);
+  }, '*', true);
+  return el('div',{class:'space-y-3'}, drop, out);
+};
+
+// Entropy
+Renderers['entropy'] = () => {
+  const input = el('textarea',{class:'textarea',placeholder:'Text or data...'});
+  const out = el('div',{class:'space-y-2'});
+  input.addEventListener('input', () => {
+    out.innerHTML='';
+    if (!input.value) return;
+    const H = entropy(input.value);
+    const maxH = Math.log2(new Set(input.value).size || 1);
+    const pct = (H/8)*100; // relative to 8-bit max
+    const assessment = H < 1.5 ? 'Very low (highly compressible)' :
+                      H < 3 ? 'Low (text-like)' :
+                      H < 5 ? 'Medium (mixed content)' :
+                      H < 7 ? 'High (random-ish)' : 'Very high (likely encrypted/compressed)';
+    out.append(el('div',{class:'surface rounded-lg p-4 text-center'},
+      el('div',{class:'text-xs text-muted uppercase tracking-wide'},'Shannon entropy'),
+      el('div',{class:'text-3xl font-bold mt-1', style:{color:'var(--accent)'}}, H.toFixed(4)),
+      el('div',{class:'text-xs text-muted mt-1'}, 'bits per character (max 8.0)'),
+      el('div',{style:{height:'8px',background:'var(--surface-2)',borderRadius:'4px',margin:'.75rem 0',overflow:'hidden'}},
+        el('div',{style:{width:pct+'%',height:'100%',background:'var(--accent)'}})
+      ),
+      el('div',{class:'text-sm'}, assessment)
+    ));
+    out.append(el('div',{class:'surface rounded-lg p-3 text-sm space-y-1'},
+      el('div',{class:'flex justify-between'}, el('span',{class:'text-muted'},'Length'), el('span',null,input.value.length)),
+      el('div',{class:'flex justify-between'}, el('span',{class:'text-muted'},'Unique chars'), el('span',null,new Set(input.value).size)),
+      el('div',{class:'flex justify-between'}, el('span',{class:'text-muted'},'Max possible H'), el('span',null,maxH.toFixed(4)))
+    ));
+  });
+  return el('div',{class:'space-y-3'}, input, out);
+};
+
+// QR Code
+Renderers['qr'] = () => {
+  let mode = 'gen';
+  const wrap = el('div',{class:'space-y-3'});
+  const renderUI = () => {
+    wrap.innerHTML='';
+    const modeRow = el('div',{class:'flex gap-1'},
+      el('button',{class:'chip '+(mode==='gen'?'active':''),onclick:()=>{mode='gen';renderUI()}},'Generate'),
+      el('button',{class:'chip '+(mode==='read'?'active':''),onclick:()=>{mode='read';renderUI()}},'Read'),
+    );
+    wrap.append(modeRow);
+    if (mode==='gen') {
+      const input = el('textarea',{class:'textarea',placeholder:'Text or URL...'});
+      const target = el('div',{id:'qrtarget',class:'flex justify-center p-4 surface rounded-lg'});
+      input.addEventListener('input', () => {
+        target.innerHTML='';
+        if (input.value && window.QRCode) new QRCode(target,{text:input.value,width:200,height:200});
+      });
+      wrap.append(input, target);
+    } else {
+      const result = el('textarea',{class:'textarea',readonly:'true'});
+      const drop = makeDropZone(async (files) => {
+        if (!files.length || !window.QrScanner) return;
+        try {
+          const r = await QrScanner.scanImage(files[0]);
+          result.value = r;
+        } catch(e) { result.value = 'No QR code found: '+e.message; }
+      }, 'image/*', true);
+      wrap.append(drop, result);
+    }
+  };
+  renderUI();
+  return wrap;
+};
+
+// ---------- DROP ZONE HELPER ----------
+function makeDropZone(handler, accept='*', singleImage=false) {
+  const text = singleImage ? 'Drop image here, click to browse, or paste from clipboard' : 'Drop file here or click to browse';
+  const zone = el('div',{class:'drop-zone'},
+    icon('upload-cloud', 24),
+    el('div',{class:'text-sm mt-2'}, text),
+    el('div',{class:'text-xs text-muted mt-1'}, accept==='*'?'Any file type':accept)
+  );
+  const input = el('input',{type:'file',accept,style:{display:'none'}});
+  zone.append(input);
+  zone.addEventListener('click', ()=>input.click());
+  input.addEventListener('change', e => handler([...e.target.files]));
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    handler([...e.dataTransfer.files]);
+  });
+  return zone;
+}
+
+// ---------- MAIN RENDER ----------
+function render() {
+  document.documentElement.classList.toggle('dark', State.theme === 'dark');
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  // Sidebar
+  const sidebar = el('aside', {class:'sidebar surface w-64 flex-shrink-0 flex flex-col'+(State.sidebarOpen?' open':''), style:{borderRight:'1px solid var(--border)'}},
+    el('div', {class:'p-4', style:{borderBottom:'1px solid var(--border)'}},
+      el('div', {class:'flex items-center gap-2'},
+        el('div',{class:'flex items-center justify-center', style:{width:'32px',height:'32px',background:'var(--accent)',borderRadius:'.5rem',color:'#fff'}}, icon('zap',18)),
+        el('div',null,
+          el('div',{class:'font-bold text-sm'},'Universal Converter'),
+          el('div',{class:'text-xs text-muted'},'All-in-one toolbox')
+        )
+      ),
+      el('div',{class:'mt-3 relative'},
+        el('input',{class:'input', placeholder:'Search tools...', value:State.search, oninput:e=>{State.search=e.target.value;render()}, style:{paddingLeft:'2rem'}}),
+        el('div',{style:{position:'absolute',left:'.6rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-muted)'}}, icon('search',14))
+      )
+    ),
+    el('nav',{class:'flex-1 overflow-y-auto scroll-thin p-2 space-y-1'},
+      ...Object.entries(TOOLS).map(([catId,cat])=>{
+        const filtered = cat.tools.filter(t => !State.search || (t.name+' '+t.desc).toLowerCase().includes(State.search.toLowerCase()));
+        if (State.search && !filtered.length) return null;
+        return el('div',null,
+          el('div',{class:'text-xs uppercase tracking-wider text-muted px-2 py-2 flex items-center gap-1.5'}, icon(cat.icon,12), cat.label),
+          ...filtered.map(t => el('div',{class:'nav-item '+(State.activeTool===t.id?'active':''), onclick:()=>{State.activeCategory=catId;State.activeTool=t.id;State.sidebarOpen=false;render()}},
+            el('span',{class:'flex-1'}, t.name),
+            State.favorites.includes(t.id) ? icon('star',12) : null
+          ))
+        );
+      }).filter(Boolean)
+    ),
+    el('div',{class:'p-3',style:{borderTop:'1px solid var(--border)'}},
+      el('button',{class:'btn w-full justify-center', onclick:()=>{State.theme=State.theme==='dark'?'light':'dark';saveState();render()}},
+        icon(State.theme==='dark'?'sun':'moon',14),
+        State.theme==='dark'?'Light mode':'Dark mode'
+      )
+    )
+  );
+
+  // Find active tool
+  const cat = TOOLS[State.activeCategory];
+  const tool = cat?.tools.find(t=>t.id===State.activeTool) || TOOLS.encoding.tools[0];
+  const renderer = Renderers[tool.id];
+
+  // Main content
+  const isFav = State.favorites.includes(tool.id);
+  const main = el('main',{class:'flex-1 overflow-y-auto scroll-thin'},
+    el('header',{class:'sticky top-0 z-10 surface flex items-center gap-3 p-3', style:{borderBottom:'1px solid var(--border)'}},
+      el('button',{class:'btn btn-ghost lg:hidden', onclick:()=>{State.sidebarOpen=!State.sidebarOpen;render()}}, icon('menu',16)),
+      el('div',{class:'flex-1'},
+        el('div',{class:'font-semibold'}, tool.name),
+        el('div',{class:'text-xs text-muted'}, tool.desc)
+      ),
+      el('button',{class:'btn btn-ghost', onclick:()=>{
+        if (isFav) State.favorites = State.favorites.filter(x=>x!==tool.id);
+        else State.favorites.push(tool.id);
+        saveState(); render();
+      }}, icon(isFav?'star':'star',14), isFav?'Unfavorite':'Favorite')
+    ),
+    el('div',{class:'p-4 max-w-6xl mx-auto'},
+      renderer ? renderer() : el('div',{class:'text-sm text-muted'},'Tool not implemented yet'),
+      // History section
+      State.history.length ? el('details',{class:'mt-8'},
+        el('summary',{class:'text-sm font-medium py-2'}, `Recent (${State.history.length})`),
+        el('div',{class:'space-y-1 mt-2'},
+          ...State.history.slice(0,10).map(h => el('div',{class:'surface rounded-lg p-2 text-xs flex gap-3 items-center'},
+            el('span',{class:'badge',style:{background:'var(--surface-2)'}}, h.tool),
+            el('span',{class:'flex-1 truncate text-muted'}, h.input),
+            el('span',{class:'text-xs text-muted'}, new Date(h.ts).toLocaleTimeString())
+          ))
+        )
+      ) : null
+    )
+  );
+
+  app.append(sidebar, main);
+  if (window.lucide) window.lucide.createIcons();
+}
+
+render();
+</script>
+</body>
+</html>
