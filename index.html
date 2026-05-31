@@ -1624,6 +1624,7 @@ function renderLogin() {
 
 // ---------- MAIN RENDER ----------
 function render() {
+  const prevScroll = document.getElementById('sidebar-nav')?.scrollTop || 0;
   document.documentElement.classList.toggle('dark', State.theme === 'dark');
   const app = document.getElementById('app');
   app.innerHTML = '';
@@ -1643,7 +1644,7 @@ function render() {
         el('div',{style:{position:'absolute',left:'.6rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-muted)'}}, icon('search',14))
       )
     ),
-    el('nav',{class:'flex-1 overflow-y-auto scroll-thin p-2 space-y-1'},
+    el('nav',{id:'sidebar-nav',class:'flex-1 overflow-y-auto scroll-thin p-2 space-y-1'},
       ...Object.entries(TOOLS).map(([catId,cat])=>{
         const filtered = cat.tools.filter(t => !State.search || (t.name+' '+t.desc).toLowerCase().includes(State.search.toLowerCase()));
         if (State.search && !filtered.length) return null;
@@ -1710,6 +1711,8 @@ function render() {
 
   app.append(sidebar, main);
   if (window.lucide) window.lucide.createIcons();
+  const navEl = document.getElementById('sidebar-nav');
+  if (navEl) navEl.scrollTop = prevScroll;
 }
 
 if (Auth.user) render(); else renderLogin();
